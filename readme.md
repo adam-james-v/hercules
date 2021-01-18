@@ -1,4 +1,6 @@
-# Hercules
+[![Hercules](resources/public/hercules-logo.png)](https://adam-james-v.github.io/dev/hercules/)
+
+[Try it!](https://adam-james-v.github.io/dev/hercules/)
 
 Use the game Hades to become strong in real life.
 
