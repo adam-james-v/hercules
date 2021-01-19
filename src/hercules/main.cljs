@@ -2,12 +2,79 @@
   (:require [reagent.dom :as rdom]
             [reagent.core :as r]
             [reagent.ratom :refer [reaction]]
-            [stylo.shape :as shape]
-            [stylo.svg :as svg]
-            [stylo.parser :as parser]
-            [baton.core :as b]
-            [forge.proto :as f]
-            [forge.delaunay :as delaunay]))
+            [svg-clj.main :as svg]
+            [same :refer [ish? zeroish?]]))
+
+(def v+ (partial mapv +))
+(def v- (partial mapv -))
+(def v* (partial mapv *))
+
+(defn distance
+  "compute distance between two points"
+  [a b]
+  (let [v (v- b a)
+        v2 (reduce + (v* v v))]
+    (Math/sqrt v2)))
+
+(defn normalize
+  "find the unit vector of a given vector"
+  [v]
+  (let [m (Math/sqrt (reduce + (v* v v)))]
+    (mapv / v (repeat m))))
+
+(defn perpendicular-2d
+  [[x y]]
+  [(- y) x])
+
+(defn determinant-2d
+  [a b]
+  (- (* (first a) (second b))
+     (* (second a) (first b))))
+
+(defn line-intersection
+  [[a b] [c d]]
+  (let [[ax ay] a
+        [bx by] b
+        [cx cy] c
+        [dx dy] d
+        xdiff [(- ax bx) (- cx dx)]
+        ydiff [(- ay by) (- cy dy)]
+        div (determinant-2d xdiff ydiff)]
+    (when (not (zeroish? (Math/abs div))) 
+      (let [d [(determinant-2d a b) (determinant-2d c d)]
+            x (/ (determinant-2d d xdiff) div)
+            y (/ (determinant-2d d ydiff) div)]
+        [x y]))))
+
+(defn offset-edge
+  [[a b] d]
+  (let [p (perpendicular-2d (v- b a))
+        pd (v* (normalize p) (repeat (- d)))
+        xa (v+ a pd)
+        xb (v+ b pd)]
+    [xa xb]))
+
+(defn cycle-pairs
+  [pts]
+  (let [n (count pts)]
+    (vec (take n (partition 2 1 (cycle pts))))))
+
+(defn every-other
+  [v]
+  (let [n (count v)]
+    (map #(get v %) (filter even? (range n)))))
+
+(defn wrap-list-once
+  [s]
+  (conj (drop-last s) (last s)))
+
+(defn offset
+  [pts d]
+  (let [edges (cycle-pairs pts)
+        opts (mapcat #(offset-edge % d) edges)
+        oedges (every-other (cycle-pairs opts))
+        edge-pairs (cycle-pairs oedges)]
+    (wrap-list-once (map #(apply line-intersection %) edge-pairs))))
 
 (def patterns-component
   [:svg 
@@ -28,80 +95,78 @@
         tri [ [0 0] [28 0] [28 28] ]
         rct [ [0 0] [35 0] [35 22] [0 22] ]]
      (->> (svg/g
-           (->> (svg/path-polygon extents)
-                (svg/style-element {:fill "none" :stroke "none"}))
+           (->> (svg/polygon-path extents)
+                (svg/style {:fill "none" :stroke "none"}))
            (->> (svg/merge-paths
-                 (svg/path-polygon opts)
-                 (svg/path-polygon (f/offset extents -16)))
-                (svg/style-element 
+                 (svg/polygon-path opts)
+                 (svg/polygon-path (offset extents -16)))
+                (svg/style 
                  {:style {:filter "drop-shadow(0px 0px 8px rgba(225,200,110,0.9))"}}))
            (->> (svg/merge-paths
-                 (svg/path-polygon opts)
-                 (svg/path-polygon (f/offset extents -20)))
-                (svg/style-element {:fill "rgb(120,110,90)" 
+                 (svg/polygon-path opts)
+                 (svg/polygon-path (offset extents -20)))
+                (svg/style {:fill "rgb(120,110,90)" 
                                     :stroke "goldenrod" :stroke-width "3px"}))
            (->> (svg/merge-paths
-                 (svg/path-polygon (f/offset opts -4))
-                 (svg/path-polygon (f/offset extents -20)))
-                (svg/style-element {:fill "rgb(50,30,10)" :stroke "none"}))
+                 (svg/polygon-path (offset opts -4))
+                 (svg/polygon-path (offset extents -20)))
+                (svg/style {:fill "rgb(50,30,10)" :stroke "none"}))
            (->> (svg/merge-paths
-                 (svg/path-polygon (f/offset opts -12))
-                 (svg/path-polygon (f/offset extents -20)))
-                (svg/style-element {:fill "rgb(180,155,70)" :stroke "none"}))
+                 (svg/polygon-path (offset opts -12))
+                 (svg/polygon-path (offset extents -20)))
+                (svg/style {:fill "rgb(180,155,70)" :stroke "none"}))
            
            (->> (svg/g
                  (->> (svg/merge-paths
-                       (svg/path-polygon tri)
-                       (svg/path-polygon (f/offset tri -6)))
+                       (svg/polygon-path tri)
+                       (svg/polygon-path (offset tri -6)))
                       (svg/translate [-9 181])
                       (svg/rotate 180.1))
                  (->> (svg/merge-paths
-                       (svg/path-polygon tri)
-                       (svg/path-polygon (f/offset tri -5)))
+                       (svg/polygon-path tri)
+                       (svg/polygon-path (offset tri -5)))
                       (svg/translate [172 0]))
                  (->> (svg/merge-paths
-                       (svg/path-polygon rct)
-                       (svg/path-polygon (f/offset rct -8)))
+                       (svg/polygon-path rct)
+                       (svg/polygon-path (offset rct -8)))
                       (svg/translate [50 0]))
                  (->> (svg/merge-paths
-                       (svg/path-polygon rct)
-                       (svg/path-polygon (f/offset rct -6)))
+                       (svg/polygon-path rct)
+                       (svg/polygon-path (offset rct -6)))
                       (svg/translate [115 178]))
                  (->> (svg/merge-paths
-                       (svg/path-polygon rct)
-                       (svg/path-polygon (f/offset rct -8)))
+                       (svg/polygon-path rct)
+                       (svg/polygon-path (offset rct -8)))
                       (svg/translate [172 130])
                       (svg/rotate 90.1))
                  (->> (svg/merge-paths
-                       (svg/path-polygon rct)
-                       (svg/path-polygon (f/offset rct -4)))
+                       (svg/polygon-path rct)
+                       (svg/polygon-path (offset rct -4)))
                       (svg/translate [-6 135])
                       (svg/rotate 90.1))
                  (->> (svg/merge-paths
-                       (svg/path-polygon rct)
-                       (svg/path-polygon (f/offset rct -4)))
+                       (svg/polygon-path rct)
+                       (svg/polygon-path (offset rct -4)))
                       (svg/translate [-6 35])
                       (svg/rotate 90.1))
                  (->> (svg/merge-paths
-                       (svg/path-polygon rct)
-                       (svg/path-polygon (f/offset rct -4)))
+                       (svg/polygon-path rct)
+                       (svg/polygon-path (offset rct -4)))
                       (svg/translate [150 0])))
-                (svg/style-element {:fill "rgb(100,95,70)" :stroke "none"}))
+                (svg/style {:fill "rgb(100,95,70)" :stroke "none"}))
 
            (->> (svg/merge-paths
-                 (svg/path-polygon (f/offset extents -20))
-                 (svg/path-polygon (f/offset extents -26)))
-                (svg/style-element {:fill "rgb(0,0,0)" :stroke "none"}))
+                 (svg/polygon-path (offset extents -20))
+                 (svg/polygon-path (offset extents -26)))
+                (svg/style {:fill "rgb(0,0,0)" :stroke "none"}))
+           (->> (svg/polygon-path opts)
+                (svg/style {:fill "url(#gradient)" :stroke "none"}))
            (->> (svg/merge-paths
-                 (svg/path-polygon opts)
-                 #_(svg/path-polygon (f/offset extents -26)))
-                (svg/style-element {:fill "url(#gradient)" :stroke "none"}))
-           (->> (svg/merge-paths
-                 (svg/path-polygon opts)
-                 (svg/path-polygon (f/offset extents -23)))
-                (svg/style-element {:fill "rgba(249,235,105,0.2)" :stroke "none"})))
+                 (svg/polygon-path opts)
+                 (svg/polygon-path (offset extents -23)))
+                (svg/style {:fill "rgba(249,235,105,0.2)" :stroke "none"})))
           (svg/translate [-100 -100])
-          (svg/rotate 44.9999))))
+          (svg/rotate 44.999))))
 
 (defn label
   [font-size text]
@@ -114,7 +179,7 @@
   [name creps rreps ereps hreps]
   (svg/g
    (->> (svg/polyline [ [-160 160] [0 0] [1000 0] ])
-        (svg/style-element {:fill "none"
+        (svg/style {:fill "none"
                             :stroke "goldenrod"
                             :stroke-width "2px"
                             :stroke-linecap "round"}))
@@ -124,23 +189,22 @@
               (->> (label 28 (str "Rare: " rreps)) (svg/translate [365 -12]))
               (->> (label 28 (str "Epic: " ereps)) (svg/translate [525 -12]))
               (->> (label 28 (str "Heroic: " hreps)) (svg/translate [675 -12])))
-             (svg/style-element {:fill "rgb(240,240,240)"}))))
+             (svg/style {:fill "rgb(240,240,240)"}))))
 
 (defn boon-art
   [bg-col name element]
   (svg/g
-   (->> 
-    (svg/g 
-     (->> (svg/rect 175 175)
-          (svg/rotate 45)
-          (svg/style-element {:fill bg-col}))
-     element
-     boon-frame)
-    (svg/style-element {:class "boon"}))
+   (->> (svg/g 
+         (->> (svg/rect 175 175)
+              (svg/rotate 45)
+              (svg/style {:fill bg-col}))
+         element
+         boon-frame)
+        (svg/style {:class "boon"}))
    (->> (label 26 name)
         (svg/translate [-120 10])
         (svg/rotate -45)
-        (svg/style-element {:class "info"}))))
+        (svg/style {:class "info"}))))
 
 ;; {:name "name" :reps [1 2 3 4] :icon 'symbol :color "rgb(20,20,20)"}
 ;; boon-option is 1 of 3 choices available during any selection (the map containing the data has already been rolled when passed into the render
@@ -198,21 +262,21 @@
 (def speed-col "rgb(255,137,137)") ;; hermes
 (def yoga-col "rgb(221,110,200)") ;; aphrodite
 
-(def fist-icon (svg/translate [-125 -125] (svg/image "fist-icon.png" 250 250)))
-(def pullup-icon (svg/translate [-125 -125] (svg/image "pullup-icon.png" 250 250)))
-(def chinup-icon (svg/translate [-125 -125] (svg/image "chinup-icon.png" 250 250)))
-(def curl-icon (svg/translate [-125 -125] (svg/image "curl-icon.png" 250 250)))
-(def pistol-squat-icon (svg/translate [-125 -125] (svg/image "pistol-squat-icon.png" 250 250)))
-(def diamond-pushup-icon (svg/translate [-125 -125] (svg/image "diamond-pushup-icon.png" 250 250)))
-(def chest-flye-icon (svg/translate [-125 -125] (svg/image "chest-flye-icon.png" 250 250)))
-(def squat-jump-icon (svg/translate [-125 -125] (svg/image "squat-jump-icon.png" 250 250)))
-(def high-knee-icon (svg/translate [-125 -125] (svg/image "high-knee-icon.png" 250 250)))
-(def wide-pushup-icon (svg/translate [-125 -125] (svg/image "wide-pushup-icon.png" 250 250)))
-(def pushup-icon (svg/translate [-125 -125] (svg/image "pushup-icon.png" 250 250)))
-(def boat-crunch-icon (svg/translate [-125 -125] (svg/image "boat-crunch-icon.png" 250 250)))
-(def leg-raise-icon (svg/translate [-125 -125] (svg/image "leg-raise-icon.png" 250 250)))
-(def mountain-climber-icon (svg/translate [-125 -125] (svg/image "mountain-climber-icon.png" 250 250)))
-(def dip-icon (svg/translate [-125 -125] (svg/image "dip-icon.png" 250 250)))
+(def fist-icon (svg/image "fist-icon.png" 250 250))
+(def pullup-icon (svg/image "pullup-icon.png" 250 250))
+(def chinup-icon (svg/image "chinup-icon.png" 250 250))
+(def curl-icon (svg/image "curl-icon.png" 250 250))
+(def pistol-squat-icon (svg/image "pistol-squat-icon.png" 250 250))
+(def diamond-pushup-icon (svg/image "diamond-pushup-icon.png" 250 250))
+(def chest-flye-icon (svg/image "chest-flye-icon.png" 250 250))
+(def squat-jump-icon (svg/image "squat-jump-icon.png" 250 250))
+(def high-knee-icon (svg/image "high-knee-icon.png" 250 250))
+(def wide-pushup-icon (svg/image "wide-pushup-icon.png" 250 250))
+(def pushup-icon (svg/image "pushup-icon.png" 250 250))
+(def boat-crunch-icon(svg/image "boat-crunch-icon.png" 250 250))
+(def leg-raise-icon (svg/image "leg-raise-icon.png" 250 250))
+(def mountain-climber-icon (svg/image "mountain-climber-icon.png" 250 250))
+(def dip-icon (svg/image "dip-icon.png" 250 250))
 
 (def exercises
   [{:name "Pullups"
@@ -304,16 +368,14 @@
                  (boon (rand-value exercises))
                  (boon (rand-value exercises))]))
 
-(defn doc []
+(def controls
   [:<>
-   patterns-component
-   [:img {:src "hercules-logo.png"
-          :alt "Hercules"
-          :style {:width "100%" :padding-top "40px"}}]
-   (apply boon-choices @state)
    [:div
     [:button {:style {:margin-right "20px"} :onClick re-roll} "ROLL"]
-    [:button {:onClick #(reset! state nil)} "HIDE"]]
+    [:button {:onClick #(reset! state nil)} "HIDE"]]])
+
+(def blurb
+  [:<>
    [:h2 {:style {:color "goldenrod"}} "Exercises"]
    [:div (boon-overview exercises)]
    [:h1 "Hercules"]
@@ -330,12 +392,26 @@
    [:p "Have fun and be safe! Your health is important and you can have fun being fit."]
    [:p "This project was designed and built by me, Adam James. You can see more of me and my work at the following places:"]
    [:ul
-    [:li [:a {:href "https://twitch.tv/adam_james_tv"} "Github"]]
-    [:li [:a {:href "https://github.com/adam-james-v"} "Twitch"]]
-    [:li [:a {:href "https://twitter.com/RustyVermeer"} "Twitter"]]
+    [:li [:a {:href "https://github.com/adam-james-v"} "Github"]]
+    [:li [:a {:href "https://www.youtube.com/c/AdamJames-tv"} "Youtube"]]
+    [:li [:a {:href "https://twitch.tv/adam_james_tv"} "Twitch"]]
+    [:li [:a {:href "https://twitter.com/RustyVermeer"} "Twitter"]] 
     [:li [:a {:href "https://www.instagram.com/adam.james.v/"} "Instagram"]]
     [:li [:a {:href "https://www.patreon.com/adam_james"} "Patreon"]]]])
 
-(b/mount doc)
-(defn ^:after-load re-render [] (b/mount doc))
-(defonce go (do (b/mount doc) true))
+(defn doc []
+  [:<>
+   patterns-component
+   [:img {:src "hercules-logo.png"
+          :alt "Hercules"
+          :style {:width "100%" :padding-top "40px"}}]
+   (apply boon-choices @state)
+   controls
+   blurb])
+
+(defn mount [app]
+  (rdom/render [app] (js/document.getElementById "root")))
+
+(mount doc)
+(defn ^:after-load re-render [] (mount doc))
+(defonce go (do (mount doc) true))

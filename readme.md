@@ -1,6 +1,4 @@
-[![Hercules](resources/public/hercules-logo.png)](https://adam-james-v.github.io/dev/hercules/)
-
-[Try it!](https://adam-james-v.github.io/dev/hercules/)
+# Hercules
 
 Use the game Hades to become strong in real life.
 
@@ -21,7 +19,6 @@ Have fun and be safe! Your health is important and you can have fun being fit.
 
 ## Some Things I have to do:
 
-- remove dependencies on my prototype libraries (stylo, forge, baton). None of these libraries are particularly well-designed and I'd rather port the few functions I use from them into this codebase directly.
 - add the ability for the user to disable exercises that require certain equipment that may be unavailable
 - add ability for the user to tweak rep ranges for each exercise. This may be necessary for changing difficulty of a workout.
-- add more exercises. This will be a bit tougher if I want to keep a consistent art style. If I remove such a restriction, it becomes very easy to add exercises.
+- add more exercises.

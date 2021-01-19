@@ -4,9 +4,8 @@
  :deps 
  {org.clojure/clojurescript  {:mvn/version "1.10.773"}
   reagent                    {:mvn/version "0.10.0"}
-  forge/forge                {:local/root  "../forge"}
-  stylo/stylo                {:local/root  "../stylo"}
-  baton/baton                {:local/root  "../baton"}
+  svg-clj/svg-clj            #_{:local/root  "../svg-clj"} {:git/url "https://github.com/adam-james-v/svg-clj" :sha "5afabaa50b700b4510ffd4933f5277206c48fa2b"}
+  same/ish                   {:mvn/version "0.1.4"}
   com.bhauman/figwheel-main  {:mvn/version "0.2.6"}}
 
  :aliases
